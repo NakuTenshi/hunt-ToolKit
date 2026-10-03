@@ -34,6 +34,10 @@ myip () {
     curl -s http://ip-api.com/json | jq . 
 }
 
+urls() {
+    grep --color=never -Eo 'https?://[^"'\''[:space:]]+' "$@"
+}
+
 export OPENROUTER_API_KEY="sk-or-your-key-here"
 export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
 export ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY"
