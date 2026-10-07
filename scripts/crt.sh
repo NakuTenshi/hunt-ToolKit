@@ -2,20 +2,40 @@
 
 # Usage: crt <domain> [output-file]
 
-response=$(curl -s -w "%{http_code}" -H "User-Agent: Mozilla/5.0" "https://crt.sh/?q=$1&output=json")
-http_code="${response: -3}"                 # last 3 chars are status code
-json_body="${response%???}"                 # everything before the status code
-
-if [ "$http_code" -ne 200 ]; then
+if [ -n "$1" ]; then
+    domain="$1"
+elif [ ! -t 0 ]; then
+    read -r domain
+else
+    echo "Usage: $0 <domain>"
     exit 1
 fi
 
-# Check if the body is valid JSON (starts with '[' or '{')
-if ! echo "$json_body" | jq empty 2>/dev/null; then
-    exit 1
-fi
+crtsh=$(
+    curl -s -H "User-Agent: Mozilla/5.0" \
+        "https://crt.sh/?q=${domain}&output=json" |
+    jq -r '.[] | .name_value, .common_name' 2>/dev/null
+)
 
-result=$(echo "$json_body" | jq -r '.[] | .name_value, .common_name' | sort -u)
+crtname=$(
+    curl -s "https://crt.name/v1/search?apex=${domain}"
+)
+
+agniops=$(
+    curl -s "https://app.agniops.in/v1/search?domain=${domain}"
+)
+
+result=$(
+    {
+        echo "$crtsh"
+        echo "$crtname"
+        echo "$agniops"
+    } |
+    tr '[:upper:]' '[:lower:]' |
+    sed 's/^\*\.//' |
+    sed '/^$/d' |
+    sort -u
+)
 
 if [ -n "$2" ]; then
     echo "$result" > "$2"
